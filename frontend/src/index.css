@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Ninu Arts Soft Editorial Premium Palette */
+    /* Warm Ivory: #F7F4F0 */
+    --background: 38 29% 95%;
+    /* Charcoal: #34312F */
+    --foreground: 24 5% 19%;
+    
+    /* Pure White Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 24 5% 19%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 5% 19%;
+    
+    /* Primary: Charcoal #34312F */
+    --primary: 24 5% 19%;
+    --primary-foreground: 38 29% 95%;
+    
+    /* Secondary / Accent: Dusty Rose #E8D8D4 */
+    --secondary: 14 28% 87%;
+    --secondary-foreground: 24 5% 19%;
+    
+    /* Muted: Soft Taupe #D6C4B5 & Neutral Gray #817872 */
+    --muted: 27 28% 92%;
+    --muted-foreground: 25 6% 48%;
+    
+    --accent: 14 28% 87%;
+    --accent-foreground: 24 5% 19%;
+    
+    /* Muted Terracotta Red: #C96A5B */
+    --destructive: 8 49% 57%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border: Soft Taupe / Hairline #E7E1D8 */
+    --border: 35 18% 88%;
+    --input: 35 18% 88%;
+    --ring: 24 5% 19%;
+    
+    --radius: 0.875rem; /* 14px */
+  }
+
+  .dark {
+    --background: 24 6% 12%;
+    --foreground: 38 25% 94%;
+    --card: 24 6% 16%;
+    --card-foreground: 38 25% 94%;
+    --popover: 24 6% 16%;
+    --popover-foreground: 38 25% 94%;
+    --primary: 38 25% 94%;
+    --primary-foreground: 24 6% 12%;
+    --secondary: 24 5% 22%;
+    --secondary-foreground: 38 25% 94%;
+    --muted: 24 5% 24%;
+    --muted-foreground: 25 6% 65%;
+    --accent: 24 5% 22%;
+    --accent-foreground: 38 25% 94%;
+    --destructive: 8 50% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 5% 24%;
+    --input: 24 5% 24%;
+    --ring: 38 25% 94%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased font-sans selection:bg-rose-100 selection:text-rose-900;
+    min-height: 100vh;
+  }
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(35 18% 82%);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(6 38% 64%);
+}

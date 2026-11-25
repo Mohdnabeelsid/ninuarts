@@ -1,0 +1,43 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies & Build Outputs
+/backend/vendor/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Local SQLite Database, Session/View Caches & Logs
+/backend/database/*.sqlite
+/backend/database/*.sqlite-journal
+/backend/public/storage
+/backend/storage/logs/*.log
+/backend/storage/app/private/*
+!/backend/storage/app/private/.gitignore
+/backend/storage/app/public/*
+!/backend/storage/app/public/.gitignore
+/backend/storage/framework/cache/data/*
+!/backend/storage/framework/cache/data/.gitignore
+/backend/storage/framework/sessions/*
+!/backend/storage/framework/sessions/.gitignore
+/backend/storage/framework/views/*
+!/backend/storage/framework/views/.gitignore
+/backend/*.log
+/frontend/*.log
+*.log
+
+# Caches & IDE
+*.tsbuildinfo
+.phpunit.result.cache
+.phpunit.cache/
+/backend/.phpunit.cache/
+/backend/bootstrap/cache/*.php
+!/backend/bootstrap/cache/.gitignore
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
