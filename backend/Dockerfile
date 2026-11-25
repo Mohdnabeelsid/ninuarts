@@ -28,14 +28,14 @@ WORKDIR /var/www
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-COPY nginx.conf /etc/nginx/http.d/default.conf
-
-RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs storage/app/private/receipts storage/app/public \
+RUN mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/private/receipts storage/app/public \
+    && composer install --no-dev --optimize-autoloader --no-interaction \
     && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache \
+    && sed -i 's/\r$//' entrypoint.sh \
     && chmod +x entrypoint.sh
+
+COPY nginx.conf /etc/nginx/http.d/default.conf
 
 EXPOSE 80
 
