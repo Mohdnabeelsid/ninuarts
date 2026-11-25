@@ -14,6 +14,12 @@ services:
         value: false
       - key: APP_TIMEZONE
         value: Asia/Kolkata
+      - key: CACHE_STORE
+        value: file
+      - key: SESSION_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
       - key: APP_KEY
         generateValue: true
       - key: DB_CONNECTION
