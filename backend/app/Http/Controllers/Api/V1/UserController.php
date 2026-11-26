@@ -8,9 +8,49 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class UserController extends BaseApiController
 {
+    public const ROLES_CONFIG = [
+        'OWNER' => [
+            'name' => 'Proprietor (Owner)',
+            'code' => 'OWNER',
+            'badge' => 'OWNER',
+            'description' => 'Full administrative, financial, operational, and team governance authority.',
+            'permissions' => [
+                ['name' => 'Financial P&L & Cash Collections', 'granted' => true],
+                ['name' => 'Expense Ledger & Receipt Audits', 'granted' => true],
+                ['name' => 'Customer CRM & Lifetime Value', 'granted' => true],
+                ['name' => 'Order Management & Price Modifications', 'granted' => true],
+                ['name' => 'Refund Processing & Adjustments', 'granted' => true],
+                ['name' => 'Deliveries, Logistics & Courier Tracking', 'granted' => true],
+                ['name' => 'Product Catalog & Pricing Control', 'granted' => true],
+                ['name' => 'Activity Audit Logs (Immutable Trail)', 'granted' => true],
+                ['name' => 'Operator & Role Management', 'granted' => true],
+                ['name' => 'Workspace Settings & Active Month Scope', 'granted' => true],
+            ],
+        ],
+        'STAFF' => [
+            'name' => 'Staff Member',
+            'code' => 'STAFF',
+            'badge' => 'STAFF',
+            'description' => 'Assists with customer inquiries, daily order intake, catalog updates, and shipping dispatches.',
+            'permissions' => [
+                ['name' => 'Financial P&L & Cash Collections', 'granted' => false],
+                ['name' => 'Expense Ledger & Receipt Audits', 'granted' => false],
+                ['name' => 'Customer CRM & Contact Info', 'granted' => true],
+                ['name' => 'Order Intake & Status Progressions', 'granted' => true],
+                ['name' => 'Refund Processing & Adjustments', 'granted' => false],
+                ['name' => 'Deliveries, Logistics & Courier Tracking', 'granted' => true],
+                ['name' => 'Product Catalog & Offerings View', 'granted' => true],
+                ['name' => 'Activity Audit Logs (Immutable Trail)', 'granted' => false],
+                ['name' => 'Operator & Role Management', 'granted' => false],
+                ['name' => 'Workspace Settings & Active Month Scope', 'granted' => false],
+            ],
+        ],
+    ];
+
     /**
      * List all dashboard operators and users with summary metrics and activity timestamps.
      */
@@ -35,7 +75,14 @@ class UserController extends BaseApiController
             });
         }
 
-        $users = $query->withCount(['orders', 'payments', 'expenses'])
+        // Defensive relation counting: only query orders if created_by column exists
+        $hasCreatedBy = Schema::hasColumn('orders', 'created_by');
+        $withCounts = ['payments', 'expenses'];
+        if ($hasCreatedBy) {
+            $withCounts[] = 'orders';
+        }
+
+        $users = $query->withCount($withCounts)
             ->orderByRaw("CASE WHEN role = 'OWNER' THEN 1 ELSE 2 END")
             ->orderByDesc('is_active')
             ->orderBy('name')
@@ -47,9 +94,12 @@ class UserController extends BaseApiController
             ->groupBy('user_id')
             ->pluck('last_login', 'user_id');
 
-        $enriched = $users->map(function (User $u) use ($lastLogins) {
+        $enriched = $users->map(function (User $u) use ($lastLogins, $hasCreatedBy) {
             $data = $u->toArray();
             $data['last_login_at'] = $lastLogins->get($u->id);
+            if (!$hasCreatedBy) {
+                $data['orders_count'] = 0;
+            }
             return $data;
         });
 
@@ -58,6 +108,7 @@ class UserController extends BaseApiController
             'active_count' => User::where('is_active', true)->count(),
             'owner_count' => User::where('role', 'OWNER')->count(),
             'staff_count' => User::where('role', 'STAFF')->count(),
+            'roles_matrix' => self::ROLES_CONFIG,
         ]);
     }
 

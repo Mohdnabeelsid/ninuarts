@@ -4,28 +4,21 @@ import {
   Users,
   ShieldCheck,
   UserCheck,
-  UserX,
   Plus,
   Edit2,
   Trash2,
   Eye,
   KeyRound,
   Power,
-  Building2,
-  Briefcase,
-  Truck,
-  IndianRupee,
-  Star,
-  MapPin,
   Phone,
   Mail,
-  Landmark,
   CheckCircle2,
   AlertCircle,
   FileText,
   Lock,
-  Unlock,
-  ExternalLink,
+  Check,
+  X,
+  ShieldAlert,
 } from "lucide-react";
 import { PageHeader } from "../components/layout/PageHeader";
 import { StatCard } from "../components/shared/StatCard";
@@ -38,33 +31,64 @@ import { ConfirmationDialog } from "../components/shared/ConfirmationDialog";
 import { StatusBadge } from "../components/shared/StatusBadge";
 import { LoadingState } from "../components/shared/LoadingState";
 import { ErrorState } from "../components/shared/ErrorState";
-import { EmptyState } from "../components/shared/EmptyState";
-import { formatCurrency, formatDate, getApiErrorMessage } from "../lib/utils";
+import { formatDate, getApiErrorMessage } from "../lib/utils";
 import { apiClient } from "../lib/api";
 import { useAuth } from "../contexts/AuthContext";
-import {
-  ActivityLog,
-  BusinessEntity,
-  BusinessEntityType,
-  Delivery,
-  Expense,
-  PaymentTermsType,
-  User,
-  UserDossier,
-  UserRole,
-  VendorEntity,
-  VendorEntityType,
-} from "../types";
+import { User, UserDossier, UserRole } from "../types";
 import { useDashboardSearch } from "../layouts/DashboardLayout";
 
-type ActiveTab = "OPERATORS" | "STUDIO_ENTITIES" | "VENDORS";
+type ActiveTab = "OPERATORS" | "ROLES_PERMISSIONS";
 
-const PAYMENT_TERM_LABELS: Record<PaymentTermsType, string> = {
-  IMMEDIATE: "Immediate",
-  NET_7: "Net 7 Days",
-  NET_15: "Net 15 Days",
-  NET_30: "Net 30 Days",
-  ADVANCE: "Advance Required",
+interface PermissionItem {
+  name: string;
+  granted: boolean;
+}
+
+interface RoleConfig {
+  name: string;
+  code: UserRole;
+  badge: string;
+  description: string;
+  permissions: PermissionItem[];
+}
+
+const DEFAULT_ROLES_CONFIG: Record<UserRole, RoleConfig> = {
+  OWNER: {
+    name: "Proprietor (Owner)",
+    code: "OWNER",
+    badge: "OWNER",
+    description: "Full administrative, financial, operational, and team governance authority.",
+    permissions: [
+      { name: "Financial P&L & Cash Collections", granted: true },
+      { name: "Expense Ledger & Receipt Audits", granted: true },
+      { name: "Customer CRM & Lifetime Value", granted: true },
+      { name: "Order Management & Price Modifications", granted: true },
+      { name: "Refund Processing & Adjustments", granted: true },
+      { name: "Deliveries, Logistics & Courier Tracking", granted: true },
+      { name: "Product Catalog & Pricing Control", granted: true },
+      { name: "Activity Audit Logs (Immutable Trail)", granted: true },
+      { name: "Operator & Role Management", granted: true },
+      { name: "Workspace Settings & Active Month Scope", granted: true },
+    ],
+  },
+  STAFF: {
+    name: "Staff Member",
+    code: "STAFF",
+    badge: "STAFF",
+    description: "Assists with customer inquiries, daily order intake, catalog updates, and shipping dispatches.",
+    permissions: [
+      { name: "Financial P&L & Cash Collections", granted: false },
+      { name: "Expense Ledger & Receipt Audits", granted: false },
+      { name: "Customer CRM & Contact Info", granted: true },
+      { name: "Order Intake & Status Progressions", granted: true },
+      { name: "Refund Processing & Adjustments", granted: false },
+      { name: "Deliveries, Logistics & Courier Tracking", granted: true },
+      { name: "Product Catalog & Offerings View", granted: true },
+      { name: "Activity Audit Logs (Immutable Trail)", granted: false },
+      { name: "Operator & Role Management", granted: false },
+      { name: "Workspace Settings & Active Month Scope", granted: false },
+    ],
+  },
 };
 
 export function EntityManagementPage() {
@@ -72,23 +96,21 @@ export function EntityManagementPage() {
   const globalSearch = useDashboardSearch();
   const { user: currentOperator } = useAuth();
 
-  // Active Tab state — Defaults to OPERATORS as requested
+  // Active view: Operators directory vs Roles & Permissions matrix
   const [activeTab, setActiveTab] = useState<ActiveTab>("OPERATORS");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [vendorTypeFilter, setVendorTypeFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   // Notifications feedback
   const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // ----------------------------------------------------
-  // 1. Dashboard User / Operator State & Modals
-  // ----------------------------------------------------
+  // Modals & Drawers
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [viewingUserId, setViewingUserId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [togglingUser, setTogglingUser] = useState<User | null>(null);
   const [passwordResetUser, setPasswordResetUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [passwordResetError, setPasswordResetError] = useState("");
@@ -102,65 +124,11 @@ export function EntityManagementPage() {
   const [uIsActive, setUIsActive] = useState(true);
   const [userFormError, setUserFormError] = useState("");
 
-  // ----------------------------------------------------
-  // 2. Vendor & Business Entities State & Modals
-  // ----------------------------------------------------
-  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
-  const [editingVendor, setEditingVendor] = useState<VendorEntity | null>(null);
-  const [viewingVendorId, setViewingVendorId] = useState<number | null>(null);
-  const [deletingVendor, setDeletingVendor] = useState<VendorEntity | null>(null);
-
-  const [isBusinessModalOpen, setIsBusinessModalOpen] = useState(false);
-  const [editingBusiness, setEditingBusiness] = useState<BusinessEntity | null>(null);
-  const [viewingBusinessId, setViewingBusinessId] = useState<number | null>(null);
-  const [deletingBusiness, setDeletingBusiness] = useState<BusinessEntity | null>(null);
-
-  // Vendor Form
-  const [vName, setVName] = useState("");
-  const [vCode, setVCode] = useState("");
-  const [vType, setVType] = useState<VendorEntityType>("SUPPLIER");
-  const [vContactPerson, setVContactPerson] = useState("");
-  const [vPhone, setVPhone] = useState("");
-  const [vEmail, setVEmail] = useState("");
-  const [vCity, setVCity] = useState("");
-  const [vAddress, setVAddress] = useState("");
-  const [vGstin, setVGstin] = useState("");
-  const [vUpiId, setVUpiId] = useState("");
-  const [vPaymentTerms, setVPaymentTerms] = useState<PaymentTermsType>("IMMEDIATE");
-  const [vDefaultCategory, setVDefaultCategory] = useState("MATERIALS");
-  const [vTrackingTemplate, setVTrackingTemplate] = useState("");
-  const [vNotes, setVNotes] = useState("");
-  const [vIsActive, setVIsActive] = useState(true);
-  const [vendorFormError, setVendorFormError] = useState("");
-
-  // Business Entity Form
-  const [bName, setBName] = useState("");
-  const [bLegalName, setBLegalName] = useState("");
-  const [bCode, setBCode] = useState("");
-  const [bType, setBType] = useState<BusinessEntityType>("STUDIO");
-  const [bGstin, setBGstin] = useState("");
-  const [bPan, setBPan] = useState("");
-  const [bEmail, setBEmail] = useState("");
-  const [bPhone, setBPhone] = useState("");
-  const [bAddress, setBAddress] = useState("");
-  const [bCity, setBCity] = useState("");
-  const [bState, setBState] = useState("Kerala");
-  const [bPincode, setBPincode] = useState("");
-  const [bUpiId, setBUpiId] = useState("");
-  const [bBankName, setBBankName] = useState("");
-  const [bBankAccount, setBBankAccount] = useState("");
-  const [bBankIfsc, setBBankIfsc] = useState("");
-  const [bIsPrimary, setBIsPrimary] = useState(false);
-  const [bIsActive, setBIsActive] = useState(true);
-  const [bNotes, setBNotes] = useState("");
-  const [businessFormError, setBusinessFormError] = useState("");
-
   const effectiveSearch = search || globalSearch;
 
   // ----------------------------------------------------
-  // Queries
+  // Query: Fetch Dashboard Users / Operators
   // ----------------------------------------------------
-  // Fetch Dashboard Users / Operators
   const {
     data: usersResp,
     isLoading: isLoadingUsers,
@@ -182,7 +150,7 @@ export function EntityManagementPage() {
     },
   });
 
-  // Fetch Single User Dossier
+  // Query: Fetch Single User Dossier
   const { data: userDossier, isLoading: isLoadingUserDossier } = useQuery({
     queryKey: ["user-dossier", viewingUserId],
     enabled: viewingUserId !== null,
@@ -192,58 +160,12 @@ export function EntityManagementPage() {
     },
   });
 
-  // Fetch Business Entities
-  const {
-    data: businessResp,
-    isLoading: isLoadingBusiness,
-    isError: isErrorBusiness,
-    refetch: refetchBusiness,
-  } = useQuery({
-    queryKey: ["business-entities", effectiveSearch, statusFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (effectiveSearch) params.append("search", effectiveSearch);
-      if (statusFilter === "ACTIVE") params.append("is_active", "true");
-      if (statusFilter === "INACTIVE") params.append("is_active", "false");
-      const res = await apiClient.get(`/business-entities?${params.toString()}`);
-      return {
-        entities: (res.data?.data || []) as BusinessEntity[],
-        meta: res.data?.meta || { total: 0, active_count: 0 },
-      };
-    },
-  });
-
-  // Fetch Vendors
-  const {
-    data: vendorResp,
-    isLoading: isLoadingVendors,
-    isError: isErrorVendors,
-    refetch: refetchVendors,
-  } = useQuery({
-    queryKey: ["vendors", effectiveSearch, vendorTypeFilter, statusFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (effectiveSearch) params.append("search", effectiveSearch);
-      if (vendorTypeFilter !== "ALL") params.append("entity_type", vendorTypeFilter);
-      if (statusFilter === "ACTIVE") params.append("is_active", "true");
-      if (statusFilter === "INACTIVE") params.append("is_active", "false");
-      const res = await apiClient.get(`/vendors?${params.toString()}`);
-      return {
-        vendors: (res.data?.data || []) as VendorEntity[],
-        meta: res.data?.meta || { total: 0, active_count: 0, suppliers_count: 0, couriers_count: 0, total_tracked_spend: 0 },
-      };
-    },
-  });
-
   const users = usersResp?.users || [];
   const userMeta = usersResp?.meta || { total: 0, active_count: 0, owner_count: 0, staff_count: 0 };
-  const businessEntities = businessResp?.entities || [];
-  const businessMeta = businessResp?.meta || { total: 0, active_count: 0 };
-  const vendors = vendorResp?.vendors || [];
-  const vendorMeta = vendorResp?.meta || { total: 0, active_count: 0, suppliers_count: 0, couriers_count: 0, total_tracked_spend: 0 };
+  const rolesMatrix = (usersResp?.meta?.roles_matrix as Record<UserRole, RoleConfig>) || DEFAULT_ROLES_CONFIG;
 
   // ----------------------------------------------------
-  // User Mutations
+  // Mutations
   // ----------------------------------------------------
   const saveUserMutation = useMutation({
     mutationFn: async (payload: any) => {
@@ -258,7 +180,7 @@ export function EntityManagementPage() {
       closeUserModal();
       setActionFeedback({
         type: "success",
-        message: editingUser ? "Operator account updated." : "New operator account created.",
+        message: editingUser ? "Operator profile updated." : "New operator account created.",
       });
     },
     onError: (err: any) => {
@@ -288,9 +210,11 @@ export function EntityManagementPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["user-dossier"] });
-      setActionFeedback({ type: "success", message: "Operator status updated." });
+      setTogglingUser(null);
+      setActionFeedback({ type: "success", message: "Operator active status updated." });
     },
     onError: (err: any) => {
+      setTogglingUser(null);
       setActionFeedback({ type: "error", message: getApiErrorMessage(err, "Cannot modify operator status.") });
     },
   });
@@ -305,70 +229,6 @@ export function EntityManagementPage() {
     onError: (err: any) => {
       setDeletingUser(null);
       setActionFeedback({ type: "error", message: getApiErrorMessage(err, "Unable to delete operator account.") });
-    },
-  });
-
-  // ----------------------------------------------------
-  // Vendor & Business Mutations
-  // ----------------------------------------------------
-  const saveVendorMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      if (editingVendor) return apiClient.put(`/vendors/${editingVendor.id}`, payload);
-      return apiClient.post("/vendors", payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      closeVendorModal();
-      setActionFeedback({ type: "success", message: editingVendor ? "Vendor updated." : "Vendor registered." });
-    },
-    onError: (err: any) => setVendorFormError(getApiErrorMessage(err, "Failed to save vendor.")),
-  });
-
-  const deleteVendorMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.delete(`/vendors/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      setDeletingVendor(null);
-      setActionFeedback({ type: "success", message: "Vendor deleted." });
-    },
-    onError: (err: any) => {
-      setDeletingVendor(null);
-      setActionFeedback({ type: "error", message: getApiErrorMessage(err, "Unable to delete vendor.") });
-    },
-  });
-
-  const saveBusinessMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      if (editingBusiness) return apiClient.put(`/business-entities/${editingBusiness.id}`, payload);
-      return apiClient.post("/business-entities", payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business-entities"] });
-      closeBusinessModal();
-      setActionFeedback({ type: "success", message: editingBusiness ? "Studio entity updated." : "Studio entity added." });
-    },
-    onError: (err: any) => setBusinessFormError(getApiErrorMessage(err, "Failed to save studio entity.")),
-  });
-
-  const promotePrimaryMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.put(`/business-entities/${id}`, { is_primary: true }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business-entities"] });
-      setActionFeedback({ type: "success", message: "Primary studio entity updated." });
-    },
-    onError: (err: any) => setActionFeedback({ type: "error", message: getApiErrorMessage(err, "Failed to set primary.") }),
-  });
-
-  const deleteBusinessMutation = useMutation({
-    mutationFn: async (id: number) => apiClient.delete(`/business-entities/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["business-entities"] });
-      setDeletingBusiness(null);
-      setActionFeedback({ type: "success", message: "Studio entity removed." });
-    },
-    onError: (err: any) => {
-      setDeletingBusiness(null);
-      setActionFeedback({ type: "error", message: getApiErrorMessage(err, "Unable to delete studio entity.") });
     },
   });
 
@@ -426,64 +286,6 @@ export function EntityManagementPage() {
     });
   };
 
-  const openAddVendor = () => {
-    setEditingVendor(null);
-    setVName("");
-    setVCode("");
-    setVType("SUPPLIER");
-    setVContactPerson("");
-    setVPhone("");
-    setVEmail("");
-    setVCity("");
-    setVAddress("");
-    setVGstin("");
-    setVUpiId("");
-    setVPaymentTerms("IMMEDIATE");
-    setVDefaultCategory("MATERIALS");
-    setVTrackingTemplate("");
-    setVNotes("");
-    setVIsActive(true);
-    setVendorFormError("");
-    setIsVendorModalOpen(true);
-  };
-
-  const closeVendorModal = () => {
-    setIsVendorModalOpen(false);
-    setEditingVendor(null);
-    setVendorFormError("");
-  };
-
-  const openAddBusiness = () => {
-    setEditingBusiness(null);
-    setBName("");
-    setBLegalName("");
-    setBCode("");
-    setBType("BRANCH");
-    setBGstin("");
-    setBPan("");
-    setBEmail("");
-    setBPhone("");
-    setBAddress("");
-    setBCity("Alappuzha");
-    setBState("Kerala");
-    setBPincode("");
-    setBUpiId("");
-    setBBankName("");
-    setBBankAccount("");
-    setBBankIfsc("");
-    setBIsPrimary(false);
-    setBIsActive(true);
-    setBNotes("");
-    setBusinessFormError("");
-    setIsBusinessModalOpen(true);
-  };
-
-  const closeBusinessModal = () => {
-    setIsBusinessModalOpen(false);
-    setEditingBusiness(null);
-    setBusinessFormError("");
-  };
-
   // ----------------------------------------------------
   // User Table Columns
   // ----------------------------------------------------
@@ -510,7 +312,7 @@ export function EntityManagementPage() {
       ),
     },
     {
-      header: "Role & Access",
+      header: "Assigned Role",
       cell: (row) => <StatusBadge status={row.role} size="sm" />,
     },
     {
@@ -544,7 +346,7 @@ export function EntityManagementPage() {
       ),
     },
     {
-      header: "Status",
+      header: "Account Status",
       cell: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} size="sm" />,
     },
     {
@@ -564,7 +366,7 @@ export function EntityManagementPage() {
             type="button"
             onClick={() => openEditUser(row)}
             className="p-1.5 rounded-lg text-[#6B635B] hover:text-[#34312F] hover:bg-[#F7F4F0] transition-colors"
-            title="Edit Operator Profile"
+            title="Edit Operator Profile & Role"
           >
             <Edit2 className="h-3.5 w-3.5" />
           </button>
@@ -576,16 +378,16 @@ export function EntityManagementPage() {
               setPasswordResetError("");
             }}
             className="p-1.5 rounded-lg text-[#6B635B] hover:text-[#34312F] hover:bg-[#F7F4F0] transition-colors"
-            title="Reset Password"
+            title="Reset Password Credentials"
           >
             <KeyRound className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
-            onClick={() => toggleUserActiveMutation.mutate(row)}
+            onClick={() => setTogglingUser(row)}
             disabled={currentOperator?.id === row.id}
             className="p-1.5 rounded-lg text-[#6B635B] hover:text-[#34312F] hover:bg-[#F7F4F0] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            title={row.is_active ? "Deactivate Operator" : "Activate Operator"}
+            title={row.is_active ? "Deactivate Operator Account" : "Activate Operator Account"}
           >
             <Power className="h-3.5 w-3.5" />
           </button>
@@ -607,25 +409,15 @@ export function EntityManagementPage() {
     <div className="space-y-6 pb-12">
       <PageHeader
         title="Entity Management"
-        description="Manage dashboard users, operator credentials, roles and permissions, operating studio profiles, and vendor partners."
+        description="Manage dashboard users, operator credentials, roles, and access permissions for Ninu Arts workspace."
         actions={
           <button
             type="button"
-            onClick={() => {
-              if (activeTab === "OPERATORS") openAddUser();
-              else if (activeTab === "VENDORS") openAddVendor();
-              else openAddBusiness();
-            }}
+            onClick={openAddUser}
             className="inline-flex items-center gap-2 rounded-xl bg-[#34312F] px-4 py-2.5 text-xs font-medium text-white shadow-soft hover:bg-[#1F1D1C] transition-colors"
           >
             <Plus className="h-4 w-4" />
-            <span>
-              {activeTab === "OPERATORS"
-                ? "Add Operator / User"
-                : activeTab === "VENDORS"
-                ? "Register Vendor"
-                : "Add Studio Entity"}
-            </span>
+            <span>Add Operator / User</span>
           </button>
         }
       />
@@ -656,14 +448,27 @@ export function EntityManagementPage() {
         </div>
       )}
 
-      {/* KPI Cards — Focused on Operators & Dashboard Users */}
+      {/* KPI Cards — Dashboard User & Role Governance */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Dashboard Operators"
           value={userMeta.total || 0}
           subtitle={`${userMeta.active_count || 0} active workspace users`}
           icon={Users}
-          onClick={() => setActiveTab("OPERATORS")}
+          onClick={() => {
+            setActiveTab("OPERATORS");
+            setRoleFilter("ALL");
+          }}
+        />
+        <StatCard
+          title="Active Sessions"
+          value={userMeta.active_count || 0}
+          subtitle="Permitted to sign in"
+          icon={CheckCircle2}
+          onClick={() => {
+            setActiveTab("OPERATORS");
+            setStatusFilter("ACTIVE");
+          }}
         />
         <StatCard
           title="Proprietor (Owners)"
@@ -678,24 +483,17 @@ export function EntityManagementPage() {
         <StatCard
           title="Staff Members"
           value={userMeta.staff_count || 0}
-          subtitle="Orders, CRM, and catalog access"
+          subtitle="Orders, CRM & logistics access"
           icon={UserCheck}
           onClick={() => {
             setActiveTab("OPERATORS");
             setRoleFilter("STAFF");
           }}
-        />
-        <StatCard
-          title="Studio & Partners"
-          value={`${businessMeta.total || 0} / ${vendorMeta.total || 0}`}
-          subtitle="Studios & registered vendors"
-          icon={Building2}
-          onClick={() => setActiveTab("STUDIO_ENTITIES")}
           highlight
         />
       </div>
 
-      {/* Tab Navigation + Filter Bar */}
+      {/* Navigation Pills: Users vs Roles & Permissions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="inline-flex rounded-xl border border-[#E7E1D8] bg-white p-1 shadow-card self-start">
           <button
@@ -708,49 +506,31 @@ export function EntityManagementPage() {
             }`}
           >
             <Users className="h-3.5 w-3.5" />
-            <span>Dashboard Users ({userMeta.total || 0})</span>
+            <span>Dashboard Operators ({userMeta.total || 0})</span>
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("STUDIO_ENTITIES")}
+            onClick={() => setActiveTab("ROLES_PERMISSIONS")}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all ${
-              activeTab === "STUDIO_ENTITIES"
+              activeTab === "ROLES_PERMISSIONS"
                 ? "bg-[#34312F] text-white shadow-soft"
                 : "text-[#6B635B] hover:text-[#34312F]"
             }`}
           >
-            <Building2 className="h-3.5 w-3.5" />
-            <span>Studio Units ({businessMeta.total || 0})</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("VENDORS")}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-all ${
-              activeTab === "VENDORS"
-                ? "bg-[#34312F] text-white shadow-soft"
-                : "text-[#6B635B] hover:text-[#34312F]"
-            }`}
-          >
-            <Briefcase className="h-3.5 w-3.5" />
-            <span>Vendors & Partners ({vendorMeta.total || 0})</span>
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>Roles & Permissions Matrix</span>
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <SearchInput
-            value={search}
-            onChange={setSearch}
-            placeholder={
-              activeTab === "OPERATORS"
-                ? "Search users by name, email, phone..."
-                : activeTab === "STUDIO_ENTITIES"
-                ? "Search studios, codes, GSTIN..."
-                : "Search vendors, contacts, city..."
-            }
-            className="w-full sm:w-64"
-          />
+        {activeTab === "OPERATORS" && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search operators by name, email, phone..."
+              className="w-full sm:w-64"
+            />
 
-          {activeTab === "OPERATORS" && (
             <FilterDropdown
               label="Role"
               selectedValue={roleFilter}
@@ -761,34 +541,19 @@ export function EntityManagementPage() {
                 { label: "Staff Members", value: "STAFF" },
               ]}
             />
-          )}
 
-          {activeTab === "VENDORS" && (
             <FilterDropdown
-              label="Type"
-              selectedValue={vendorTypeFilter}
-              onChange={setVendorTypeFilter}
+              label="Status"
+              selectedValue={statusFilter}
+              onChange={setStatusFilter}
               options={[
-                { label: "All Types", value: "ALL" },
-                { label: "Material Suppliers", value: "SUPPLIER" },
-                { label: "Print Partners", value: "PRINT_PARTNER" },
-                { label: "Courier Partners", value: "COURIER" },
-                { label: "Service Vendors", value: "SERVICE" },
+                { label: "All Statuses", value: "ALL" },
+                { label: "Active Only", value: "ACTIVE" },
+                { label: "Inactive Only", value: "INACTIVE" },
               ]}
             />
-          )}
-
-          <FilterDropdown
-            label="Status"
-            selectedValue={statusFilter}
-            onChange={setStatusFilter}
-            options={[
-              { label: "All Statuses", value: "ALL" },
-              { label: "Active Only", value: "ACTIVE" },
-              { label: "Inactive Only", value: "INACTIVE" },
-            ]}
-          />
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Main Tab Content */}
@@ -807,141 +572,130 @@ export function EntityManagementPage() {
             onRowClick={(row) => setViewingUserId(row.id)}
           />
         )
-      ) : activeTab === "STUDIO_ENTITIES" ? (
-        isLoadingBusiness ? (
-          <LoadingState message="Loading studio profiles..." />
-        ) : isErrorBusiness ? (
-          <ErrorState message="Unable to load studio profiles." onRetry={() => refetchBusiness()} />
-        ) : businessEntities.length === 0 ? (
-          <div className="rounded-2xl border border-[#E7E1D8] bg-white p-8 shadow-card">
-            <EmptyState title="No studio entities found" message="Add your primary studio profile or framing workshop." />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {businessEntities.map((entity) => (
+      ) : (
+        /* Roles & Permissions Matrix View */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {(["OWNER", "STAFF"] as UserRole[]).map((roleKey) => {
+            const role = rolesMatrix[roleKey] || DEFAULT_ROLES_CONFIG[roleKey];
+            const usersWithRole = users.filter((u) => u.role === roleKey);
+            const isOwnerRole = roleKey === "OWNER";
+
+            return (
               <div
-                key={entity.id}
-                className={`rounded-2xl border bg-white p-6 shadow-card transition-all hover:shadow-soft flex flex-col justify-between gap-4 ${
-                  entity.is_primary ? "border-[#D1E0CE] bg-gradient-to-br from-white to-[#F9FBF8]" : "border-[#E7E1D8]"
-                }`}
+                key={roleKey}
+                className="rounded-2xl border border-[#E7E1D8] bg-white p-6 shadow-card flex flex-col justify-between gap-6"
               >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-serif text-lg text-[#34312F]">{entity.name}</h3>
-                        {entity.is_primary && <StatusBadge status="PRIMARY" size="sm" />}
-                        <StatusBadge status={entity.entity_type} size="sm" />
-                        {!entity.is_active && <StatusBadge status="INACTIVE" size="sm" />}
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                            isOwnerRole
+                              ? "bg-[#F5ECE9] text-[#7A4B43]"
+                              : "bg-[#EBF2F7] text-[#3D5B73]"
+                          }`}
+                        >
+                          {isOwnerRole ? (
+                            <ShieldCheck className="h-4 w-4" />
+                          ) : (
+                            <UserCheck className="h-4 w-4" />
+                          )}
+                        </div>
+                        <h3 className="font-serif text-lg text-[#34312F]">{role.name}</h3>
                       </div>
-                      <p className="text-xs text-[#817872] mt-0.5">
-                        {entity.legal_name || "No legal title specified"} •{" "}
-                        <span className="font-mono text-[#34312F]">{entity.code}</span>
+                      <p className="text-xs text-[#817872] leading-relaxed pt-1">
+                        {role.description}
                       </p>
                     </div>
+
+                    <span className="rounded-full bg-[#F7F4F0] border border-[#E7E1D8] px-3 py-1 text-xs font-medium text-[#34312F]">
+                      {usersWithRole.length} {usersWithRole.length === 1 ? "User" : "Users"}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-[#6B635B] pt-2 border-t border-[#F0ECE7]">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 text-[#817872] shrink-0" />
-                      <span className="truncate">
-                        {[entity.city, entity.state, entity.pincode].filter(Boolean).join(", ") || "Location not set"}
-                      </span>
+                  {/* Assigned Operators Chips */}
+                  <div className="pt-2 border-t border-[#F0ECE7]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#817872] block mb-2">
+                      Assigned Operators
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {usersWithRole.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => setViewingUserId(u.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#E7E1D8] bg-[#FDFBF7] px-2.5 py-1 text-xs text-[#34312F] hover:bg-[#F7F4F0] transition-colors"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#8B9B86]" />
+                          <span>{u.name}</span>
+                          {!u.is_active && (
+                            <span className="text-[10px] text-[#8F352A]">(Inactive)</span>
+                          )}
+                        </button>
+                      ))}
+                      {usersWithRole.length === 0 && (
+                        <span className="text-xs text-[#817872] italic">No operators currently assigned</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-3.5 w-3.5 text-[#817872] shrink-0" />
-                      <span>{entity.phone || "No phone"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-3.5 w-3.5 text-[#817872] shrink-0" />
-                      <span className="truncate">{entity.email || "No email"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Landmark className="h-3.5 w-3.5 text-[#817872] shrink-0" />
-                      <span className="truncate">{entity.upi_id || entity.gstin || "No UPI / GSTIN"}</span>
+                  </div>
+
+                  {/* Permissions Checklist */}
+                  <div className="pt-2 border-t border-[#F0ECE7]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[#817872] block mb-2.5">
+                      Permissions & Module Access
+                    </span>
+                    <div className="space-y-2">
+                      {role.permissions.map((perm, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-xs py-1 px-2.5 rounded-lg bg-[#FDFBF7]/60"
+                        >
+                          <span className={perm.granted ? "text-[#34312F]" : "text-[#817872]"}>
+                            {perm.name}
+                          </span>
+                          {perm.granted ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#475E42]">
+                              <Check className="h-3.5 w-3.5 text-[#8B9B86]" /> Granted
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#817872]">
+                              <Lock className="h-3 w-3 text-[#9E958C]" /> Restricted
+                            </span>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-[#F0ECE7]">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setViewingBusinessId(entity.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#E7E1D8] bg-white px-3 py-1.5 text-xs font-medium text-[#34312F] hover:bg-[#F7F4F0] transition-colors"
-                    >
-                      <Eye className="h-3.5 w-3.5 text-[#817872]" />
-                      <span>View</span>
-                    </button>
-                  </div>
-                  {!entity.is_primary && (
-                    <button
-                      type="button"
-                      onClick={() => promotePrimaryMutation.mutate(entity.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#D1E0CE] bg-[#EAF0E8] px-3 py-1.5 text-xs font-medium text-[#475E42] hover:bg-[#DCE7D9] transition-colors"
-                    >
-                      <Star className="h-3.5 w-3.5" />
-                      <span>Set Primary</span>
-                    </button>
-                  )}
+                <div className="pt-3 border-t border-[#F0ECE7] flex items-center justify-between">
+                  <span className="text-[11px] text-[#817872]">
+                    Role ID: <code className="font-mono text-[#34312F]">{role.code}</code>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("OPERATORS");
+                      setRoleFilter(roleKey);
+                    }}
+                    className="text-xs font-medium text-[#7A4B43] hover:text-[#34312F] transition-colors"
+                  >
+                    View assigned operators →
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )
-      ) : (
-        /* Vendors Tab */
-        isLoadingVendors ? (
-          <LoadingState message="Loading vendors..." />
-        ) : isErrorVendors ? (
-          <ErrorState message="Unable to load vendors." onRetry={() => refetchVendors()} />
-        ) : (
-          <div className="rounded-2xl border border-[#E7E1D8] bg-white p-6 shadow-card space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-serif text-lg text-[#34312F]">Vendor & Partner Entities</h3>
-                <p className="text-xs text-[#817872]">
-                  Registered material suppliers, printing houses, and couriers linked to expense records.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={openAddVendor}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-[#E7E1D8] bg-[#F7F4F0] px-3.5 py-2 text-xs font-medium text-[#34312F] hover:bg-[#F0ECE7]"
-              >
-                <Plus className="h-3.5 w-3.5" /> Register Vendor
-              </button>
-            </div>
-            <div className="divide-y divide-[#F0ECE7]">
-              {vendors.map((v) => (
-                <div key={v.id} className="py-3 flex items-center justify-between gap-4 text-xs">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[#34312F]">{v.name}</span>
-                      <StatusBadge status={v.entity_type} size="sm" />
-                      {!v.is_active && <StatusBadge status="INACTIVE" size="sm" />}
-                    </div>
-                    <p className="text-[11px] text-[#817872] mt-0.5">
-                      {[v.contact_person, v.phone, v.city].filter(Boolean).join(" • ")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-serif text-sm text-[#34312F]">{formatCurrency(v.total_spent || 0)}</span>
-                    <p className="text-[10px] text-[#817872]">{v.expense_count || 0} bills recorded</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
+            );
+          })}
+        </div>
       )}
 
       {/* User Create / Edit Modal */}
       <FormDialog
         isOpen={isUserModalOpen}
         onClose={closeUserModal}
-        title={editingUser ? "Edit Operator Account" : "Invite / Add Dashboard User"}
-        description="Configure account access credentials and operational role for this workspace."
+        title={editingUser ? "Edit Operator Account" : "Add Dashboard User / Operator"}
+        description="Configure operator login credentials and access roles for the Ninu Arts workspace."
         maxWidth="md"
       >
         <form onSubmit={handleUserSubmit} className="space-y-4">
@@ -996,7 +750,7 @@ export function EntityManagementPage() {
 
           <div>
             <label className="block text-xs font-medium text-[#34312F] mb-1">
-              Dashboard Role <span className="text-[#8F352A]">*</span>
+              Assigned Dashboard Role <span className="text-[#8F352A]">*</span>
             </label>
             <select
               value={uRole}
@@ -1016,7 +770,7 @@ export function EntityManagementPage() {
           {!editingUser && (
             <div>
               <label className="block text-xs font-medium text-[#34312F] mb-1">
-                Initial Account Password <span className="text-[#8F352A]">*</span>
+                Sign-In Password <span className="text-[#8F352A]">*</span>
               </label>
               <input
                 type="password"
@@ -1235,6 +989,21 @@ export function EntityManagementPage() {
         ) : null}
       </DetailDrawer>
 
+      {/* Toggle Active Confirmation */}
+      <ConfirmationDialog
+        isOpen={togglingUser !== null}
+        onClose={() => setTogglingUser(null)}
+        onConfirm={() => togglingUser && toggleUserActiveMutation.mutate(togglingUser)}
+        title={togglingUser?.is_active ? "Deactivate Operator Account" : "Activate Operator Account"}
+        message={
+          togglingUser?.is_active
+            ? `Deactivate ${togglingUser.name}? Their active sessions will be terminated and they will not be able to sign in until re-activated.`
+            : `Re-activate ${togglingUser?.name}? They will be able to sign in with their existing credentials.`
+        }
+        confirmText={togglingUser?.is_active ? "Deactivate" : "Activate"}
+        variant={togglingUser?.is_active ? "warning" : "info"}
+      />
+
       {/* Delete User Confirmation */}
       <ConfirmationDialog
         isOpen={deletingUser !== null}
@@ -1247,17 +1016,6 @@ export function EntityManagementPage() {
             : ""
         }
         confirmText={deleteUserMutation.isPending ? "Deleting..." : "Delete Operator"}
-        variant="danger"
-      />
-
-      {/* Delete Vendor Confirmation */}
-      <ConfirmationDialog
-        isOpen={deletingVendor !== null}
-        onClose={() => setDeletingVendor(null)}
-        onConfirm={() => deletingVendor && deleteVendorMutation.mutate(deletingVendor.id)}
-        title="Delete Vendor Entity"
-        message={deletingVendor ? `Delete vendor "${deletingVendor.name}"?` : ""}
-        confirmText={deleteVendorMutation.isPending ? "Deleting..." : "Delete Vendor"}
         variant="danger"
       />
     </div>
