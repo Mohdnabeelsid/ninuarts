@@ -20,6 +20,10 @@ echo "Caching configuration and routes..."
 php artisan config:cache
 php artisan route:cache
 
+echo "Ensuring runtime permissions for www-data..."
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
 echo "Starting PHP-FPM daemon..."
 php-fpm -D
 

@@ -28,7 +28,8 @@ WORKDIR /var/www
 
 ENV SESSION_DRIVER=file \
     CACHE_STORE=file \
-    QUEUE_CONNECTION=sync
+    QUEUE_CONNECTION=sync \
+    LOG_CHANNEL=stderr
 
 COPY . .
 
@@ -37,7 +38,8 @@ RUN mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sess
     && chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache \
     && sed -i 's/\r$//' entrypoint.sh \
-    && chmod +x entrypoint.sh
+    && chmod +x entrypoint.sh \
+    && printf "[www]\nclear_env = no\n" > /usr/local/etc/php-fpm.d/zz-render.conf
 
 COPY nginx.conf /etc/nginx/http.d/default.conf
 
