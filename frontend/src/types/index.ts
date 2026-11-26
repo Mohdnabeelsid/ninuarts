@@ -9,6 +9,23 @@ export interface User {
   phone?: string | null;
   role: UserRole;
   is_active: boolean;
+  orders_count?: number;
+  payments_count?: number;
+  expenses_count?: number;
+  last_login_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserDossier {
+  user: User;
+  stats: {
+    orders_created: number;
+    payments_recorded: number;
+    expenses_recorded: number;
+    total_actions_logged: number;
+  };
+  recent_activity: ActivityLog[];
 }
 
 export type LeadSource = "INSTAGRAM" | "WHATSAPP" | "REFERRAL" | "DIRECT";

@@ -305,6 +305,22 @@ const BADGE_CONFIG: Record<
     border: "border-[#E5DFD7]",
     dot: "bg-[#9E958C]",
   },
+
+  // Dashboard User & Operator Roles
+  OWNER: {
+    label: "Proprietor (Owner)",
+    bg: "bg-[#F5ECE9]",
+    text: "text-[#7A4B43]",
+    border: "border-[#E8D8D4]",
+    dot: "bg-[#C4928A]",
+  },
+  STAFF: {
+    label: "Staff Member",
+    bg: "bg-[#EBF2F7]",
+    text: "text-[#3D5B73]",
+    border: "border-[#CFDFEB]",
+    dot: "bg-[#6E95B8]",
+  },
 };
 
 export function StatusBadge({ status, className = "", size = "md" }: StatusBadgeProps) {

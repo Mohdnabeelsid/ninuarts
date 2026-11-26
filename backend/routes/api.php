@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ActivityLogController;
 use App\Http\Controllers\Api\V1\BusinessEntityController;
 use App\Http\Controllers\Api\V1\VendorController;
+use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Middleware\ApplyActivePeriodScope;
 
 /*
@@ -95,7 +96,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/analytics/expense-analytics', [AnalyticsController::class, 'expenseAnalytics']);
             Route::get('/analytics/delayed-orders', [AnalyticsController::class, 'delayedOrders']);
 
-            // Entity Management (Business Studio Profiles & Vendors/Partners)
+            // Entity Management (Dashboard Users & Operators, Studio Profiles & Vendors)
+            Route::post('/users/{id}/reset-password', [UserController::class, 'resetPassword']);
+            Route::apiResource('users', UserController::class);
             Route::apiResource('business-entities', BusinessEntityController::class);
             Route::apiResource('vendors', VendorController::class);
 
