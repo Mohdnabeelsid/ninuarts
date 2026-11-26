@@ -11,6 +11,7 @@ class Expense extends Model
         'amount',
         'expense_date',
         'payment_method',
+        'vendor_id',
         'vendor_name',
         'bill_reference',
         'description',
@@ -27,6 +28,11 @@ class Expense extends Model
     public function category()
     {
         return $this->belongsTo(ExpenseCategory::class, 'category_id');
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Vendor::class, 'vendor_id');
     }
 
     public function recorder()

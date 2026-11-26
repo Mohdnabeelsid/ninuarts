@@ -47,6 +47,9 @@ const AnalyticsPage = lazy(() =>
 const ActivityLogsPage = lazy(() =>
   import("./pages/ActivityLogsPage").then((m) => ({ default: m.ActivityLogsPage }))
 );
+const EntityManagementPage = lazy(() =>
+  import("./pages/EntityManagementPage").then((m) => ({ default: m.EntityManagementPage }))
+);
 const SettingsPage = lazy(() =>
   import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
 );
@@ -116,6 +119,14 @@ export function App() {
                       element={
                         <OwnerRoute>
                           <ActivityLogsPage />
+                        </OwnerRoute>
+                      }
+                    />
+                    <Route
+                      path="/entities"
+                      element={
+                        <OwnerRoute>
+                          <EntityManagementPage />
                         </OwnerRoute>
                       }
                     />

@@ -29,7 +29,7 @@ import { ErrorState } from "../components/shared/ErrorState";
 import { EmptyState } from "../components/shared/EmptyState";
 import { formatCurrency, formatDate, getApiErrorMessage } from "../lib/utils";
 import { apiClient } from "../lib/api";
-import { Expense, ExpenseCategory, PaymentMethod } from "../types";
+import { Expense, ExpenseCategory, PaymentMethod, VendorEntity } from "../types";
 import { useActivePeriod } from "../contexts/ActivePeriodContext";
 import { useDashboardSearch } from "../layouts/DashboardLayout";
 
@@ -57,6 +57,7 @@ export function ExpensesPage() {
   const [formAmount, setFormAmount] = useState<string>("");
   const [formDate, setFormDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [formMethod, setFormMethod] = useState<PaymentMethod>("UPI");
+  const [formVendorId, setFormVendorId] = useState<number | "">("");
   const [formVendor, setFormVendor] = useState<string>("");
   const [formBillRef, setFormBillRef] = useState<string>("");
   const [formDescription, setFormDescription] = useState<string>("");
@@ -65,11 +66,19 @@ export function ExpensesPage() {
   const [uploadingReceipt, setUploadingReceipt] = useState<boolean>(false);
   const [formError, setFormError] = useState<string>("");
 
-  // 1. Fetch Categories
+  // 1. Fetch Categories & Active Vendors
   const { data: categories = [] } = useQuery<ExpenseCategory[]>({
     queryKey: ["expense-categories"],
     queryFn: async () => {
       const res = await apiClient.get("/expenses/categories");
+      return res.data?.data || [];
+    },
+  });
+
+  const { data: activeVendors = [] } = useQuery<VendorEntity[]>({
+    queryKey: ["vendors", "active-lookup"],
+    queryFn: async () => {
+      const res = await apiClient.get("/vendors?is_active=true");
       return res.data?.data || [];
     },
   });
@@ -131,6 +140,7 @@ export function ExpensesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["expense-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       closeForm();
@@ -147,6 +157,7 @@ export function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
       closeForm();
     },
@@ -162,6 +173,7 @@ export function ExpensesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
       queryClient.invalidateQueries({ queryKey: ["analytics"] });
       setDeletingId(null);
     },
@@ -174,6 +186,7 @@ export function ExpensesPage() {
     setFormAmount("");
     setFormDate(new Date().toISOString().split("T")[0]);
     setFormMethod("UPI");
+    setFormVendorId("");
     setFormVendor("");
     setFormBillRef("");
     setFormDescription("");
@@ -190,6 +203,7 @@ export function ExpensesPage() {
     setFormAmount(exp.amount.toString());
     setFormDate(exp.expense_date ? exp.expense_date.split("T")[0] : "");
     setFormMethod(exp.payment_method);
+    setFormVendorId(exp.vendor_id || "");
     setFormVendor(exp.vendor_name || "");
     setFormBillRef(exp.bill_reference || "");
     setFormDescription(exp.description);
@@ -243,6 +257,7 @@ export function ExpensesPage() {
       amount: parsedAmount,
       expense_date: formDate,
       payment_method: formMethod,
+      vendor_id: formVendorId || null,
       vendor_name: formVendor.trim() || null,
       bill_reference: formBillRef.trim() || null,
       description: formDescription.trim(),
@@ -611,15 +626,52 @@ export function ExpensesPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Vendor Name */}
+            {/* Vendor Entity Picker + Name */}
             <div>
               <label className="block text-xs font-medium text-[#34312F] mb-1.5">
-                Vendor / Supplier Name
+                Vendor / Supplier Entity
               </label>
+              {activeVendors.length > 0 && (
+                <select
+                  value={formVendorId}
+                  onChange={(e) => {
+                    const id = e.target.value ? Number(e.target.value) : "";
+                    setFormVendorId(id);
+                    const matched = activeVendors.find((v) => v.id === id);
+                    if (matched) {
+                      setFormVendor(matched.name);
+                      if (
+                        !editingExpense &&
+                        matched.default_category &&
+                        categories.some((c) => c.code === matched.default_category)
+                      ) {
+                        setFormCategory(matched.default_category);
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#E7E1D8] bg-[#FDFBF7] mb-2 focus:outline-[#34312F]"
+                >
+                  <option value="">-- Select registered vendor (optional) --</option>
+                  {activeVendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.entity_type.replace(/_/g, " ")})
+                    </option>
+                  ))}
+                </select>
+              )}
               <input
                 type="text"
                 value={formVendor}
-                onChange={(e) => setFormVendor(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormVendor(val);
+                  if (formVendorId) {
+                    const matched = activeVendors.find((v) => v.id === formVendorId);
+                    if (!matched || matched.name.toLowerCase() !== val.trim().toLowerCase()) {
+                      setFormVendorId("");
+                    }
+                  }
+                }}
                 placeholder="e.g. Kerala Glass & Frame Mart"
                 className="w-full px-3 py-2 text-xs rounded-xl border border-[#E7E1D8] focus:outline-[#34312F]"
               />

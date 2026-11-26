@@ -1,13 +1,25 @@
 import React from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "../components/layout/PageHeader";
 import { ActiveMonthPicker } from "../components/layout/ActiveMonthPicker";
 import { useActivePeriod } from "../contexts/ActivePeriodContext";
 import { useAuth } from "../contexts/AuthContext";
-import { Shield, Calendar, Store, Clock, Database, Sparkles } from "lucide-react";
+import { apiClient } from "../lib/api";
+import { BusinessEntity } from "../types";
+import { Calendar, Store, Clock, ArrowRight } from "lucide-react";
 
 export function SettingsPage() {
   const { activePeriod } = useActivePeriod();
   const { user } = useAuth();
+
+  const { data: primaryEntity } = useQuery<BusinessEntity | null>({
+    queryKey: ["business-entities", "primary-summary"],
+    queryFn: async () => {
+      const res = await apiClient.get("/business-entities");
+      return (res.data?.meta?.primary_entity || res.data?.data?.[0] || null) as BusinessEntity | null;
+    },
+  });
 
   return (
     <div className="space-y-6 max-w-4xl pb-12">
@@ -45,27 +57,49 @@ export function SettingsPage() {
 
       {/* Business Entity Profile */}
       <div className="rounded-2xl border border-[#E7E1D8] bg-white p-6 shadow-card space-y-4">
-        <h3 className="text-sm font-serif font-normal text-[#34312F] flex items-center gap-2">
-          <Store className="h-4 w-4 text-[#817872]" />
-          <span>Brand & Operating Profile</span>
-        </h3>
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-sm font-serif font-normal text-[#34312F] flex items-center gap-2">
+            <Store className="h-4 w-4 text-[#817872]" />
+            <span>Brand & Operating Profile</span>
+          </h3>
+          <Link
+            to="/entities"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7A4B43] hover:text-[#34312F] transition-colors"
+          >
+            <span>Manage Studio & Vendor Entities</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div>
-            <p className="text-[10px] uppercase font-semibold text-[#817872]">Brand Name</p>
-            <p className="font-medium text-[#34312F] mt-0.5">Ninu Arts</p>
+            <p className="text-[10px] uppercase font-semibold text-[#817872]">Primary Studio Entity</p>
+            <p className="font-medium text-[#34312F] mt-0.5">
+              {primaryEntity?.name || "Ninu Arts"}{" "}
+              {primaryEntity?.code ? `(${primaryEntity.code})` : ""}
+            </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase font-semibold text-[#817872]">Proprietor / Operator</p>
-            <p className="font-medium text-[#34312F] mt-0.5">Nidha</p>
+            <p className="text-[10px] uppercase font-semibold text-[#817872]">Proprietor / Legal Name</p>
+            <p className="font-medium text-[#34312F] mt-0.5">
+              {primaryEntity?.legal_name || "Nidha"}
+            </p>
           </div>
           <div>
             <p className="text-[10px] uppercase font-semibold text-[#817872]">Studio Location</p>
-            <p className="font-medium text-[#34312F] mt-0.5">Alappuzha, Kerala, India</p>
+            <p className="font-medium text-[#34312F] mt-0.5">
+              {[primaryEntity?.city || "Alappuzha", primaryEntity?.state || "Kerala", "India"]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
           </div>
           <div>
-            <p className="text-[10px] uppercase font-semibold text-[#817872]">Operational Currency</p>
-            <p className="font-medium text-[#34312F] mt-0.5">Indian Rupee (INR / ₹)</p>
+            <p className="text-[10px] uppercase font-semibold text-[#817872]">
+              {primaryEntity?.upi_id ? "Primary UPI / Tax ID" : "Operational Currency"}
+            </p>
+            <p className="font-medium text-[#34312F] mt-0.5">
+              {primaryEntity?.upi_id || primaryEntity?.gstin || "Indian Rupee (INR / ₹)"}
+            </p>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   Package,
   Receipt,
   BarChart3,
+  Building2,
   History,
   Settings,
   ChevronLeft,
@@ -73,6 +74,12 @@ const NAV_ITEMS: NavItem[] = [
     title: "Analytics & P&L",
     path: "/analytics",
     icon: BarChart3,
+    ownerOnly: true,
+  },
+  {
+    title: "Entity Management",
+    path: "/entities",
+    icon: Building2,
     ownerOnly: true,
   },
   {

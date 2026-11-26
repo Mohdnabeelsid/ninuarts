@@ -240,6 +240,71 @@ const BADGE_CONFIG: Record<
     border: "border-[#E5DFD7]",
     dot: "bg-[#9E958C]",
   },
+
+  // Entity Management Types
+  PRIMARY: {
+    label: "Primary Studio",
+    bg: "bg-[#EAF0E8]",
+    text: "text-[#475E42]",
+    border: "border-[#D1E0CE]",
+    dot: "bg-[#8B9B86]",
+  },
+  STUDIO: {
+    label: "Studio",
+    bg: "bg-[#F5ECE9]",
+    text: "text-[#7A4B43]",
+    border: "border-[#E8D8D4]",
+    dot: "bg-[#C4928A]",
+  },
+  BRANCH: {
+    label: "Branch",
+    bg: "bg-[#EBF2F7]",
+    text: "text-[#3D5B73]",
+    border: "border-[#CFDFEB]",
+    dot: "bg-[#6E95B8]",
+  },
+  WORKSHOP: {
+    label: "Workshop",
+    bg: "bg-[#FAF0E6]",
+    text: "text-[#8C6239]",
+    border: "border-[#F0DDC7]",
+    dot: "bg-[#D4A373]",
+  },
+  BRAND: {
+    label: "Brand",
+    bg: "bg-[#F0EFF5]",
+    text: "text-[#544E6E]",
+    border: "border-[#DDD9E8]",
+    dot: "bg-[#8278A3]",
+  },
+  SUPPLIER: {
+    label: "Material Supplier",
+    bg: "bg-[#FAF0E6]",
+    text: "text-[#8C6239]",
+    border: "border-[#F0DDC7]",
+    dot: "bg-[#D4A373]",
+  },
+  PRINT_PARTNER: {
+    label: "Print Partner",
+    bg: "bg-[#F0EFF5]",
+    text: "text-[#544E6E]",
+    border: "border-[#DDD9E8]",
+    dot: "bg-[#8278A3]",
+  },
+  COURIER: {
+    label: "Courier Partner",
+    bg: "bg-[#EBF2F7]",
+    text: "text-[#3D5B73]",
+    border: "border-[#CFDFEB]",
+    dot: "bg-[#6E95B8]",
+  },
+  SERVICE: {
+    label: "Service Vendor",
+    bg: "bg-[#F4F1ED]",
+    text: "text-[#6B635B]",
+    border: "border-[#E5DFD7]",
+    dot: "bg-[#9E958C]",
+  },
 };
 
 export function StatusBadge({ status, className = "", size = "md" }: StatusBadgeProps) {

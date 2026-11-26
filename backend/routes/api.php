@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\V1\FulfillmentController;
 use App\Http\Controllers\Api\V1\ExpenseController;
 use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\ActivityLogController;
+use App\Http\Controllers\Api\V1\BusinessEntityController;
+use App\Http\Controllers\Api\V1\VendorController;
 use App\Http\Middleware\ApplyActivePeriodScope;
 
 /*
@@ -92,6 +94,10 @@ Route::prefix('v1')->group(function () {
             Route::get('/analytics/customer-analytics', [AnalyticsController::class, 'customerAnalytics']);
             Route::get('/analytics/expense-analytics', [AnalyticsController::class, 'expenseAnalytics']);
             Route::get('/analytics/delayed-orders', [AnalyticsController::class, 'delayedOrders']);
+
+            // Entity Management (Business Studio Profiles & Vendors/Partners)
+            Route::apiResource('business-entities', BusinessEntityController::class);
+            Route::apiResource('vendors', VendorController::class);
 
             // Activity & Audit Logs
             Route::get('/activity-logs', [ActivityLogController::class, 'index']);

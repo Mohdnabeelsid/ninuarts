@@ -276,6 +276,8 @@ export interface Expense {
   amount: number;
   expense_date: string;
   payment_method: PaymentMethod;
+  vendor_id?: number | null;
+  vendor?: VendorEntity | null;
   vendor_name?: string | null;
   bill_reference?: string | null;
   description: string;
@@ -466,4 +468,60 @@ export interface AppNotification {
   timestamp: string;
   read: boolean;
   link?: string;
+}
+
+// Entity Management Types
+export type BusinessEntityType = "STUDIO" | "BRANCH" | "WORKSHOP" | "BRAND";
+
+export interface BusinessEntity {
+  id: number;
+  name: string;
+  legal_name?: string | null;
+  code: string;
+  entity_type: BusinessEntityType;
+  gstin?: string | null;
+  pan?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  upi_id?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type VendorEntityType = "SUPPLIER" | "PRINT_PARTNER" | "COURIER" | "SERVICE";
+
+export type PaymentTermsType = "IMMEDIATE" | "NET_7" | "NET_15" | "NET_30" | "ADVANCE";
+
+export interface VendorEntity {
+  id: number;
+  name: string;
+  code: string;
+  entity_type: VendorEntityType;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  city?: string | null;
+  address?: string | null;
+  gstin?: string | null;
+  upi_id?: string | null;
+  payment_terms: PaymentTermsType;
+  default_category?: string | null;
+  tracking_url_template?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  expense_count?: number;
+  total_spent?: number;
+  delivery_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }

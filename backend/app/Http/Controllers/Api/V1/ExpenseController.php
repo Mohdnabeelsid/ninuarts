@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\Vendor;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +20,7 @@ class ExpenseController extends BaseApiController
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Expense::with(['category', 'recorder']);
+        $query = Expense::with(['category', 'vendor', 'recorder']);
 
         if ($categoryId = $request->query('category_id')) {
             $query->where('category_id', $categoryId);
@@ -97,7 +98,7 @@ class ExpenseController extends BaseApiController
      */
     public function show(int $id): JsonResponse
     {
-        $expense = Expense::with(['category', 'recorder'])->find($id);
+        $expense = Expense::with(['category', 'vendor', 'recorder'])->find($id);
 
         if (!$expense) {
             return $this->sendError('Expense record not found.', 404, 'NOT_FOUND');
@@ -207,6 +208,7 @@ class ExpenseController extends BaseApiController
             'amount' => 'required|numeric|min:0.5',
             'expense_date' => 'required|date',
             'payment_method' => 'required|in:UPI,BANK_TRANSFER,CASH',
+            'vendor_id' => 'nullable|exists:vendors,id',
             'vendor_name' => 'nullable|string|max:150',
             'bill_reference' => 'nullable|string|max:100',
             'description' => 'required|string|max:500',
@@ -234,12 +236,19 @@ class ExpenseController extends BaseApiController
             $categoryId = $other->id;
         }
 
+        $vendorId = $validated['vendor_id'] ?? null;
+        $vendorName = $validated['vendor_name'] ?? null;
+        if ($vendorId && empty($vendorName)) {
+            $vendorName = Vendor::find($vendorId)?->name;
+        }
+
         $expense = Expense::create([
             'category_id' => $categoryId,
             'amount' => round((float)$validated['amount'], 2),
             'expense_date' => $validated['expense_date'],
             'payment_method' => $validated['payment_method'],
-            'vendor_name' => $validated['vendor_name'] ?? null,
+            'vendor_id' => $vendorId,
+            'vendor_name' => $vendorName,
             'bill_reference' => $validated['bill_reference'] ?? null,
             'description' => $validated['description'],
             'attachment_path' => $validated['attachment_path'] ?? null,
@@ -277,12 +286,17 @@ class ExpenseController extends BaseApiController
             'amount' => 'sometimes|numeric|min:0.5',
             'expense_date' => 'sometimes|date',
             'payment_method' => 'sometimes|in:UPI,BANK_TRANSFER,CASH',
+            'vendor_id' => 'nullable|exists:vendors,id',
             'vendor_name' => 'nullable|string|max:150',
             'bill_reference' => 'nullable|string|max:100',
             'description' => 'sometimes|string|max:500',
             'attachment_path' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
+
+        if (!empty($validated['vendor_id']) && empty($validated['vendor_name'])) {
+            $validated['vendor_name'] = Vendor::find($validated['vendor_id'])?->name;
+        }
 
         if (!empty($validated['custom_category'])) {
             $catCode = strtoupper(Str::slug($validated['custom_category'], '_'));

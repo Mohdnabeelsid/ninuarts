@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ProductCategorySeeder::class,
             ExpenseCategorySeeder::class,
+            EntitySeeder::class,
         ]);
     }
 }
